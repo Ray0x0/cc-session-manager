@@ -87,6 +87,58 @@ def delete_session(session: SessionInfo) -> bool:
         return False
 
 
+def clean_sessions() -> None:
+    """孤立セッションを検出し、一括削除を提案する"""
+    from .scanner import scan_all_sessions, scan_active_session_ids
+
+    active_ids = scan_active_session_ids()
+    all_sessions = scan_all_sessions()
+
+    if not all_sessions:
+        print("セッションが見つかりませんでした。")
+        return
+
+    protected = []
+    orphaned = []
+
+    for s in all_sessions:
+        if s.session_id in active_ids:
+            protected.append(s)
+        else:
+            orphaned.append(s)
+
+    if protected:
+        print("\n紐づきあり（保護）:")
+        for s in protected:
+            print(f"  - {s.display_title()} → {s.session_id[:8]} — {s.display_date()}")
+
+    if not orphaned:
+        print("\n孤立セッションはありません。")
+        return
+
+    print(f"\n孤立セッション（削除候補）: {len(orphaned)}件")
+    for i, s in enumerate(orphaned, 1):
+        print(f"  {i}. {s.display_title()} — {s.session_id[:8]} — {s.display_date()} （{s.display_project()}）")
+
+    ans = input(f"\n{len(orphaned)}件を一括削除しますか？ (yes と入力で削除) > ").strip()
+    if ans != "yes":
+        print("キャンセルしました。")
+        return
+
+    deleted = 0
+    for s in orphaned:
+        try:
+            s.jsonl_path.unlink()
+            folder = s.jsonl_path.parent / s.session_id
+            if folder.exists():
+                shutil.rmtree(folder)
+            deleted += 1
+        except OSError as e:
+            print(f"  削除失敗: {s.session_id[:8]} — {e}")
+
+    print(f"\n{deleted}件を削除しました。")
+
+
 def _extract_text(content) -> str:
     if isinstance(content, str):
         return content.strip()

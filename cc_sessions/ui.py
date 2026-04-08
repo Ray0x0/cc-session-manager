@@ -1,6 +1,6 @@
 import unicodedata
 
-from .actions import delete_session, preview_session, resume_session
+from .actions import clean_sessions, delete_session, preview_session, resume_session
 from .models import SessionInfo
 from .scanner import scan_all_sessions
 
@@ -24,10 +24,13 @@ def main() -> None:
             return
 
         _show_list(sessions)
-        choice = input("\n番号を入力 (s:検索 / q:終了) > ").strip()
+        choice = input("\n番号を入力 (s:検索 / c:クリーン / q:終了) > ").strip()
 
         if choice == "q":
             break
+        elif choice == "c":
+            clean_sessions()
+            continue
         elif choice == "s":
             sessions = _search(sessions)
             if not sessions:

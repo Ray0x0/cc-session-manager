@@ -88,3 +88,38 @@ def _parse_jsonl(path: Path) -> SessionInfo | None:
         first_message=first_message,
         message_count=message_count,
     )
+
+
+def scan_active_session_ids() -> set[str]:
+    """active/ フォルダ内の handoff ファイルから session_id を収集する"""
+    from .config import TARGET_PROJECTS
+
+    ids = set()
+    for proj in TARGET_PROJECTS:
+        active_dir = proj["sessions_dir"] / "active"
+        if not active_dir.exists():
+            continue
+        for md_path in active_dir.glob("*.md"):
+            sid = _extract_session_id(md_path)
+            if sid and sid != "unknown":
+                ids.add(sid)
+    return ids
+
+
+def _extract_session_id(path: Path) -> str | None:
+    """YAML フロントマターから session_id を読み取る"""
+    try:
+        with open(path, encoding="utf-8") as f:
+            in_frontmatter = False
+            for line in f:
+                line = line.strip()
+                if line == "---" and not in_frontmatter:
+                    in_frontmatter = True
+                    continue
+                if line == "---" and in_frontmatter:
+                    break
+                if in_frontmatter and line.startswith("session_id:"):
+                    return line.split(":", 1)[1].strip()
+    except OSError:
+        pass
+    return None
